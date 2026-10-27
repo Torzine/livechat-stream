@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stream Bubble Chat</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121212;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        /* 1. FRAME UTAMA (Simulasi Layar Live Stream 9:16) */
+        .stream-frame {
+            position: relative;
+            width: 380px;
+            height: 680px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            /* Background simulasi video stream */
+            background: linear-gradient(145deg, #2a0845, #6441A5, #182848);
+            background-size: 400% 400%;
+            animation: gradientBG 10s ease infinite;
+        }
+
+        @keyframes gradientBG {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* Indikator "LIVE" di pojok kiri atas */
+        .live-badge {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #ff0050;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            letter-spacing: 1px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        /* 2. AREA BUBBLE CHAT (Menumpuk di atas video) */
+        .chat-overlay {
+            position: absolute;
+            bottom: 75px;
+            /* Di atas kolom ketik */
+            left: 15px;
+            width: 80%;
+            max-height: 260px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: 8px;
+            overflow: hidden;
+            z-index: 5;
+            /* Efek memudar di bagian atas seperti IG/TikTok Live */
+            -webkit-mask-image: linear-gradient(to top, black 70%, transparent 100%);
+            mask-image: linear-gradient(to top, black 70%, transparent 100%);
+        }
+
+        /* 3. DESAIN BUBBLE KOMENTAR */
+        .chat-bubble {
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(6px);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 18px;
+            font-size: 13.5px;
+            line-height: 1.4;
+            width: fit-content;
+            max-width: 100%;
+            word-wrap: break-word;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chat-bubble .username {
+            font-weight: 700;
+            color: #ff9a9e;
+            margin-right: 6px;
+        }
+
+        @keyframes popIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* 4. INPUT KOMENTAR DI BAWAH */
+        .chat-input-area {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 25px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .chat-input-area input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .chat-input-area button {
+            background: #ff0050;
+            color: white;
+            border: none;
+            padding: 0 18px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .chat-input-area button:hover {
+            background: #d60043;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="stream-frame">
+        <!-- Nantinya bisa kamu ganti tag <video autoplay loop muted> di sini -->
+        <div class="live-badge">
+            <div class="live-dot"></div> LIVE
+        </div>
+
+        <!-- Container tempat bubble chat muncul -->
+        <div class="chat-overlay" id="chatContainer">
+            <div class="chat-bubble">
+                <span class="username">Sistem:</span>Selamat datang di ruang live chat!
+            </div>
+        </div>
+
+        <!-- Input ketik komentar -->
+        <form class="chat-input-area" id="chatForm">
+            <input type="text" id="chatInput" placeholder="Ketik komentar..." autocomplete="off" required />
+            <button type="submit">Kirim</button>
+        </form>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const chatForm = document.getElementById('chatForm');
+        const chatInput = document.getElementById('chatInput');
+
+        // Fungsi untuk memunculkan bubble baru
+        function addBubbleChat(username, message, color = '#ff9a9e') {
+            const bubble = document.createElement('div');
+            bubble.classList.add('chat-bubble');
+            bubble.innerHTML = `<span class="username" style="color: ${color}">${username}:</span>${message}`;
+
+            chatContainer.appendChild(bubble);
+
+            // Batasi maksimal 8 bubble di layar agar memori browser tetap ringan
+            if (chatContainer.children.length > 8) {
+                chatContainer.removeChild(chatContainer.firstElementChild);
+            }
+        }
+
+        // Saat user mengirim chat sendiri
+        chatForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const text = chatInput.value.trim();
+            if (text !== '') {
+                addBubbleChat('Kamu', text, '#64ffda');
+                chatInput.value = '';
+                // Di sinilah nanti kamu taruh fungsi fetch() POST ke file PHP untuk simpan ke MySQL
+            }
+        });
+
+        // Simulasi komentar orang lain yang masuk otomatis setiap beberapa detik
+        const dummyUsers = [
+            { name: 'Rizky_99', msg: 'Halo bang, suaranya jelas banget!', color: '#ffd166' },
+            { name: 'Dina_Ayu', msg: 'Spill kodingannya dong kak 🔥', color: '#ff9a9e' },
+            { name: 'Budi_Santoso', msg: 'Hadir dari Solo nih!', color: '#a8dadc' },
+            { name: 'CoderMalam', msg: 'Wah keren efek bubble transparan gini', color: '#cdb4db' }
+        ];
+
+        setInterval(() => {
+            const random = dummyUsers[Math.floor(Math.random() * dummyUsers.length)];
+            addBubbleChat(random.name, random.msg, random.color);
+        }, 3500);
+    </script>
+
+</body>
+
+</html>
