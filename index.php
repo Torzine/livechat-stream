@@ -1,5 +1,5 @@
 <?php
-// index.php - Main Live Stream Display Screen (Crafted Live Stage View)
+// index.php - Main Live Stream Display Screen (Awwwards-Grade Interactive Three.js + GSAP Stage)
 require_once __DIR__ . '/api/db.php';
 $settings = get_settings($pdo);
 $streamTitle  = htmlspecialchars($settings['stream_title'] ?? 'UNSA Interactive Stream');
@@ -12,15 +12,21 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $streamTitle; ?></title>
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- QRCode CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Three.js (WebGL 3D Engine) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- GSAP (GreenSock Animation Platform) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
     <style>
         :root {
-            --bg-deep: #0b0e14;
-            --surface-card: #141923;
+            --bg-deep: #080b10;
+            --surface-card: #131822;
             --surface-border: #232b3b;
             --brand-primary: #e63946;
             --brand-accent: #00b4d8;
@@ -50,7 +56,7 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
             position: relative;
             width: 100vw;
             height: 100vh;
-            background: radial-gradient(circle at 15% 20%, #161f30 0%, #0b0e14 70%);
+            background: #080b10;
             overflow: hidden;
             display: flex;
         }
@@ -61,11 +67,22 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
             height: 840px;
             max-height: 96vh;
             border-radius: 28px;
-            background: radial-gradient(circle at 50% 15%, #182338 0%, #0b0e14 75%);
+            background: #080b10;
             overflow: hidden;
             border: 1px solid var(--surface-border);
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
             display: flex;
+        }
+
+        /* 3D WebGL Canvas Layer */
+        #webglCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
         }
 
         /* 2. TOP BRANDING */
@@ -105,7 +122,8 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
             font-size: 14.5px;
             font-weight: 700;
             color: var(--text-main);
-            background: rgba(20, 25, 35, 0.85);
+            background: rgba(19, 24, 34, 0.85);
+            backdrop-filter: blur(12px);
             padding: 7px 18px;
             border-radius: 10px;
             border: 1px solid var(--surface-border);
@@ -120,7 +138,8 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
             gap: 9px;
             font-size: 12px;
             color: var(--text-muted);
-            background: rgba(20, 25, 35, 0.85);
+            background: rgba(19, 24, 34, 0.85);
+            backdrop-filter: blur(12px);
             padding: 7px 16px;
             border-radius: 10px;
             border: 1px solid var(--surface-border);
@@ -182,47 +201,13 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
             max-width: 96%;
             word-wrap: break-word;
             border: 1px solid var(--surface-border);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
             display: flex;
             align-items: flex-start;
             gap: 12px;
             transform-origin: left bottom;
             will-change: transform, opacity;
-            animation: bubblePopEffect 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-            transition: transform 0.4s ease, opacity 0.4s ease;
-        }
-
-        @keyframes bubblePopEffect {
-            0% {
-                opacity: 0;
-                transform: translate3d(0, 35px, 0) scale(0.2) scaleY(0.7);
-            }
-            50% {
-                opacity: 1;
-                transform: translate3d(0, -6px, 0) scale(1.08) scaleX(1.04) scaleY(0.96);
-            }
-            75% {
-                transform: translate3d(0, 2px, 0) scale(0.98);
-            }
-            100% {
-                opacity: 1;
-                transform: translate3d(0, 0, 0) scale(1);
-            }
-        }
-
-        /* Efek Terdesak di Bagian Atas */
-        .chat-bubble.bubble-squeezed {
-            opacity: 0.6;
-            transform: translate3d(0, -4px, 0) scale(0.94) scaleY(0.88);
-            transition: all 0.4s cubic-bezier(0.2, 0.9, 0.3, 1);
-        }
-
-        .chat-bubble.bubble-exit {
-            opacity: 0 !important;
-            transform: translate3d(0, -32px, 0) scale(0.7) scaleY(0.55) !important;
-            margin-bottom: -40px !important;
-            pointer-events: none !important;
-            transition: transform 0.45s ease, opacity 0.4s ease, margin-bottom 0.45s ease !important;
+            pointer-events: auto;
         }
 
         .bubble-avatar {
@@ -275,12 +260,13 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
             line-height: 1.45;
         }
 
-        /* 5. QR CODE CARD */
+        /* 5. QR CODE CARD (Interactive Tilt Ready) */
         .layout-landscape .qr-card-container {
             position: absolute;
             bottom: 36px;
             right: 32px;
             z-index: 25;
+            perspective: 800px;
         }
 
         .layout-portrait .qr-card-container {
@@ -288,6 +274,7 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
             top: 75px;
             right: 16px;
             z-index: 25;
+            perspective: 800px;
         }
 
         .qr-card {
@@ -302,6 +289,8 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
             box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
             text-align: center;
             width: 180px;
+            transform-style: preserve-3d;
+            transition: border-color 0.3s ease;
         }
 
         .layout-portrait .qr-card {
@@ -333,7 +322,10 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
 
 <body>
 
-    <div class="stage-wrapper layout-<?php echo $screenLayout; ?>">
+    <div class="stage-wrapper layout-<?php echo $screenLayout; ?>" id="stageWrapper">
+        <!-- Three.js Interactive 3D Canvas -->
+        <canvas id="webglCanvas"></canvas>
+
         <!-- Top Navigation -->
         <div class="top-bar">
             <div class="live-badge">
@@ -361,9 +353,9 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
             </div>
         </div>
 
-        <!-- QR Card -->
+        <!-- QR Card with Interactive Physics -->
         <div class="qr-card-container">
-            <div class="qr-card">
+            <div class="qr-card" id="qrCard">
                 <div class="qr-badge">Scan & Chat</div>
                 <div class="qr-frame">
                     <div id="qrcode"></div>
@@ -375,7 +367,133 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
     </div>
 
     <script>
-        // 1. Dynamic QR Code
+        // ==============================================================
+        // 1. THREE.JS INTERACTIVE 3D WEBGL AMBIENT MESH (Awwwards Style)
+        // ==============================================================
+        const stageWrapper = document.getElementById('stageWrapper');
+        const canvas3D = document.getElementById('webglCanvas');
+        let renderer, scene, camera, pointsGeometry, particlesMesh, torusWire;
+        let mouseX = 0, mouseY = 0;
+        let targetX = 0, targetY = 0;
+
+        function initThreeJS() {
+            const width = stageWrapper.clientWidth;
+            const height = stageWrapper.clientHeight;
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+            camera.position.z = 8;
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvas3D, alpha: true, antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // A. Partikel 3D Luar Angkasa Halus
+            const particleCount = 220;
+            const posArray = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 22;
+            }
+
+            pointsGeometry = new THREE.BufferGeometry();
+            pointsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+            const pointsMaterial = new THREE.PointsMaterial({
+                size: 0.045,
+                color: 0x00b4d8,
+                transparent: true,
+                opacity: 0.45
+            });
+
+            particlesMesh = new THREE.Points(pointsGeometry, pointsMaterial);
+            scene.add(particlesMesh);
+
+            // B. 3D Wireframe Torus Ring (Floating Stage Motif)
+            const torusGeo = new THREE.TorusGeometry(3.2, 0.9, 12, 36);
+            const torusMat = new THREE.MeshBasicMaterial({
+                color: 0x1d273b,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.22
+            });
+            torusWire = new THREE.Mesh(torusGeo, torusMat);
+            torusWire.position.set(4, 1, -2);
+            scene.add(torusWire);
+
+            // Resize listener
+            window.addEventListener('resize', onResize);
+            window.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth) - 0.5;
+                mouseY = (e.clientY / window.innerHeight) - 0.5;
+            });
+
+            animate3D();
+        }
+
+        function onResize() {
+            const w = stageWrapper.clientWidth;
+            const h = stageWrapper.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            // Lerp mouse follow
+            targetX += (mouseX - targetX) * 0.05;
+            targetY += (mouseY - targetY) * 0.05;
+
+            // Slow ambient rotation
+            particlesMesh.rotation.y += 0.0008;
+            particlesMesh.rotation.x = -targetY * 0.3;
+            particlesMesh.rotation.y += targetX * 0.3;
+
+            torusWire.rotation.x += 0.0015;
+            torusWire.rotation.y += 0.002;
+            torusWire.position.x = 4 + (targetX * 0.8);
+            torusWire.position.y = 1 - (targetY * 0.8);
+
+            renderer.render(scene, camera);
+        }
+
+        initThreeJS();
+
+        // ==============================================================
+        // 2. GSAP INTERACTIVE 3D TILT PADA QR CARD
+        // ==============================================================
+        const qrCard = document.getElementById('qrCard');
+        if (qrCard) {
+            window.addEventListener('mousemove', (e) => {
+                const rect = qrCard.getBoundingClientRect();
+                const cardX = rect.left + rect.width / 2;
+                const cardY = rect.top + rect.height / 2;
+                const angleX = (e.clientY - cardY) / 35;
+                const angleY = (cardX - e.clientX) / 35;
+
+                gsap.to(qrCard, {
+                    rotationX: angleX,
+                    rotationY: angleY,
+                    ease: "power2.out",
+                    duration: 0.6,
+                    transformPerspective: 800
+                });
+            });
+
+            qrCard.addEventListener('mouseleave', () => {
+                gsap.to(qrCard, {
+                    rotationX: 0,
+                    rotationY: 0,
+                    ease: "power3.out",
+                    duration: 0.8
+                });
+            });
+        }
+
+        // ==============================================================
+        // 3. DYNAMIC QR CODE
+        // ==============================================================
         const qrcodeEl = document.getElementById('qrcode');
         const joinUrlText = document.getElementById('joinUrlText');
         const currentOrigin = window.location.origin;
@@ -389,7 +507,7 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
             text: joinUrl,
             width: qrSize,
             height: qrSize,
-            colorDark: "#0b0e14",
+            colorDark: "#080b10",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.M
         });
@@ -397,7 +515,9 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
         joinUrlText.textContent = joinUrl.replace(/^https?:\/\//, '');
         joinUrlText.href = joinUrl;
 
-        // 2. Render Bubble dengan Antrean Halus & Efek Terdesak
+        // ==============================================================
+        // 4. GSAP SPRING POP BUBBLE CHAT & SQUEEZE PHYSICS
+        // ==============================================================
         const chatContainer = document.getElementById('chatContainer');
         const statusPulse = document.getElementById('statusPulse');
         const statusText = document.getElementById('statusText');
@@ -466,28 +586,55 @@ $screenLayout = $settings['screen_layout'] ?? 'landscape';
 
             chatContainer.appendChild(bubble);
 
-            // Efek terdesak pada 2 bubble teratas saat mendekati batas
+            // GSAP Elastic Spring Pop-in (Awwwards Style Physics)
+            gsap.fromTo(bubble, 
+                { y: 35, scale: 0.3, opacity: 0, scaleY: 0.6 },
+                { 
+                    y: 0, 
+                    scale: 1, 
+                    scaleY: 1, 
+                    opacity: 1, 
+                    duration: 0.65, 
+                    ease: "elastic.out(1, 0.55)" 
+                }
+            );
+
+            // Efek terdesak di bagian atas menggunakan GSAP
             const currentCount = chatContainer.children.length;
             if (currentCount >= MAX_BUBBLES) {
                 const firstChild = chatContainer.children[0];
                 const secondChild = chatContainer.children[1];
-                if (firstChild) firstChild.classList.add('bubble-squeezed');
-                if (secondChild) secondChild.classList.add('bubble-squeezed');
+                if (firstChild) {
+                    gsap.to(firstChild, { scale: 0.93, scaleY: 0.85, opacity: 0.6, y: -4, duration: 0.4, ease: "power2.out" });
+                }
+                if (secondChild) {
+                    gsap.to(secondChild, { scale: 0.96, scaleY: 0.9, opacity: 0.8, y: -2, duration: 0.4, ease: "power2.out" });
+                }
             }
 
+            // Exit animation untuk bubble tertua
             if (currentCount > MAX_BUBBLES) {
                 const oldest = chatContainer.firstElementChild;
-                oldest.classList.remove('bubble-squeezed');
-                oldest.classList.add('bubble-exit');
-                setTimeout(() => {
-                    if (oldest.parentNode === chatContainer) {
-                        chatContainer.removeChild(oldest);
+                gsap.to(oldest, {
+                    y: -30,
+                    scale: 0.6,
+                    scaleY: 0.4,
+                    opacity: 0,
+                    marginBottom: -42,
+                    duration: 0.45,
+                    ease: "power3.in",
+                    onComplete: () => {
+                        if (oldest.parentNode === chatContainer) {
+                            chatContainer.removeChild(oldest);
+                        }
                     }
-                }, 480);
+                });
             }
         }
 
-        // 3. Smart Delta Polling
+        // ==============================================================
+        // 5. SMART DELTA POLLING
+        // ==============================================================
         let lastMessageId = 0;
         let isFetching = false;
 

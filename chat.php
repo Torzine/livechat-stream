@@ -1,5 +1,5 @@
 <?php
-// chat.php - Halaman Pengiriman Komentar Khusus Penonton Mobile
+// chat.php - Halaman Pengiriman Komentar Khusus Penonton Mobile (GSAP Enhanced)
 session_start();
 require_once __DIR__ . '/api/db.php';
 
@@ -14,7 +14,6 @@ $currentRecipient = htmlspecialchars($_SESSION['livechat_recipient'] ?? 'Semua')
 $settings = get_settings($pdo);
 $requireRecipient = ($settings['require_recipient'] ?? '1') === '1';
 
-// Daftar penerima jika ingin ganti
 $recipients = [];
 if (!empty($settings['recipients_list'])) {
     $raw = explode(',', $settings['recipients_list']);
@@ -33,11 +32,22 @@ if (empty($recipients)) $recipients = ['Semua'];
     <title>Kirim Komentar - Live Stream</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <style>
+        :root {
+            --bg-deep: #080b10;
+            --surface-card: #131822;
+            --surface-border: #232b3b;
+            --brand-primary: #e63946;
+            --brand-accent: #00b4d8;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
-            background-color: #08090d;
-            color: #ffffff;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -49,102 +59,102 @@ if (empty($recipients)) $recipients = ['Semua'];
             justify-content: space-between;
             align-items: center;
             padding: 12px 16px;
-            background: rgba(22, 27, 42, 0.85);
-            backdrop-filter: blur(16px);
-            border-radius: 18px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--surface-card);
+            border-radius: 16px;
+            border: 1px solid var(--surface-border);
         }
         .user-tag { display: flex; align-items: center; gap: 10px; }
         .user-badge {
-            width: 38px;
-            height: 38px;
-            background: linear-gradient(135deg, #00f2fe, #4facfe);
-            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            background: var(--brand-accent);
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 800;
-            color: #08090d;
-            font-size: 15px;
+            color: #080b10;
+            font-size: 14px;
             font-family: 'Outfit', sans-serif;
         }
         .user-details { font-size: 13px; }
-        .user-name { font-weight: 700; font-size: 14.5px; }
-        .user-target { color: #00f2fe; font-size: 11.5px; }
+        .user-name { font-weight: 700; font-size: 14px; }
+        .user-target { color: var(--brand-accent); font-size: 11px; }
         .logout-link {
-            color: rgba(255, 255, 255, 0.5);
+            color: var(--text-muted);
             font-size: 11.5px;
             text-decoration: none;
             padding: 6px 12px;
             border-radius: 8px;
-            background: rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--surface-border);
         }
 
         .center-card {
-            background: rgba(22, 27, 42, 0.6);
-            border: 1px dashed rgba(255, 255, 255, 0.15);
-            border-radius: 22px;
+            background: var(--surface-card);
+            border: 1px solid var(--surface-border);
+            border-radius: 18px;
             padding: 24px;
             text-align: center;
             margin: auto 0;
+            opacity: 0;
+            transform: scale(0.96);
         }
         .center-card h3 { font-family: 'Outfit', sans-serif; font-size: 17px; margin-bottom: 6px; }
-        .center-card p { font-size: 13px; color: rgba(255, 255, 255, 0.6); line-height: 1.45; }
+        .center-card p { font-size: 13px; color: var(--text-muted); line-height: 1.45; }
 
         .sent-indicator {
-            min-height: 44px;
+            min-height: 42px;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
-            font-size: 13px;
-            margin-bottom: 12px;
-            transition: all 0.2s;
+            font-size: 12.5px;
+            margin-bottom: 10px;
         }
         .sent-indicator.success {
-            color: #00f2fe;
-            background: rgba(0, 242, 254, 0.12);
-            border-radius: 12px;
-            border: 1px solid rgba(0, 242, 254, 0.25);
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.12);
+            border-radius: 10px;
+            border: 1px solid rgba(16, 185, 129, 0.25);
             padding: 8px 14px;
         }
         .sent-indicator.error {
-            color: #ff3366;
-            background: rgba(255, 0, 85, 0.12);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 0, 85, 0.25);
+            color: #ff6b77;
+            background: rgba(230, 57, 70, 0.12);
+            border-radius: 10px;
+            border: 1px solid rgba(230, 57, 70, 0.25);
             padding: 8px 14px;
         }
 
         .compose-area {
-            background: rgba(22, 27, 42, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 22px;
-            padding: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+            background: var(--surface-card);
+            border-radius: 18px;
+            padding: 14px;
+            border: 1px solid var(--surface-border);
+            box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.4);
         }
         .recipient-select-wrap {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 12px;
-            background: rgba(255, 255, 255, 0.05);
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.04);
             padding: 6px 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border: 1px solid var(--surface-border);
         }
-        .recipient-select-wrap span { font-size: 12px; color: rgba(255, 255, 255, 0.6); white-space: nowrap; font-weight: 600; }
+        .recipient-select-wrap span { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; font-weight: 600; }
         .recipient-select-wrap select {
             background: transparent;
             border: none;
-            color: #00f2fe;
+            color: var(--brand-accent);
             font-weight: 700;
             font-size: 13px;
             outline: none;
             width: 100%;
         }
-        .recipient-select-wrap select option { background: #121622; color: #fff; }
+        .recipient-select-wrap select option { background: #131822; color: #fff; }
 
         .color-selector {
             display: flex;
@@ -152,12 +162,12 @@ if (empty($recipients)) $recipients = ['Semua'];
             gap: 10px;
             margin-bottom: 12px;
             overflow-x: auto;
-            padding-bottom: 4px;
+            padding-bottom: 2px;
         }
-        .color-label { font-size: 11.5px; color: rgba(255, 255, 255, 0.6); white-space: nowrap; }
+        .color-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
         .color-pill {
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             cursor: pointer;
             border: 2px solid transparent;
@@ -166,32 +176,32 @@ if (empty($recipients)) $recipients = ['Semua'];
         }
         .color-pill.active { transform: scale(1.2); border-color: #ffffff; }
 
-        .input-row { display: flex; gap: 10px; }
+        .input-row { display: flex; gap: 8px; }
         .input-row input {
             flex: 1;
-            background: rgba(255, 255, 255, 0.07);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 13px 16px;
-            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--surface-border);
+            padding: 12px 14px;
+            border-radius: 10px;
             color: white;
-            font-size: 14.5px;
+            font-size: 14px;
             outline: none;
+            transition: border-color 0.2s;
         }
-        .input-row input:focus { border-color: #ff0055; }
+        .input-row input:focus { border-color: var(--brand-primary); }
         .btn-send {
-            background: linear-gradient(135deg, #ff0055, #ff3366);
+            background: var(--brand-primary);
             border: none;
             color: white;
-            padding: 0 20px;
-            border-radius: 14px;
+            padding: 0 18px;
+            border-radius: 10px;
             font-weight: 700;
-            font-size: 14px;
+            font-size: 13.5px;
             cursor: pointer;
-            box-shadow: 0 6px 16px rgba(255, 0, 85, 0.35);
             transition: transform 0.1s;
         }
         .btn-send:active { transform: scale(0.96); }
-        .btn-send:disabled { background: #444; cursor: not-allowed; box-shadow: none; }
+        .btn-send:disabled { background: #262f40; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -206,7 +216,7 @@ if (empty($recipients)) $recipients = ['Semua'];
         <a href="join.php" class="logout-link">Ganti Akun</a>
     </div>
 
-    <div class="center-card">
+    <div class="center-card" id="centerCard">
         <h3>Siap Tayang di Layar Live</h3>
         <p>Pesan dan sasaran penerima Anda akan tampil langsung pada bubble chat layar siaran.</p>
     </div>
@@ -230,11 +240,11 @@ if (empty($recipients)) $recipients = ['Semua'];
 
             <div class="color-selector">
                 <span class="color-label">Warna Aksen:</span>
-                <div class="color-pill active" data-color="#ff0055" style="background: #ff0055;"></div>
-                <div class="color-pill" data-color="#00f2fe" style="background: #00f2fe;"></div>
-                <div class="color-pill" data-color="#ffd166" style="background: #ffd166;"></div>
-                <div class="color-pill" data-color="#06d6a0" style="background: #06d6a0;"></div>
-                <div class="color-pill" data-color="#e0aaff" style="background: #e0aaff;"></div>
+                <div class="color-pill active" data-color="#e63946" style="background: #e63946;"></div>
+                <div class="color-pill" data-color="#00b4d8" style="background: #00b4d8;"></div>
+                <div class="color-pill" data-color="#10b981" style="background: #10b981;"></div>
+                <div class="color-pill" data-color="#f59e0b" style="background: #f59e0b;"></div>
+                <div class="color-pill" data-color="#8b5cf6" style="background: #8b5cf6;"></div>
             </div>
 
             <div class="input-row">
@@ -245,6 +255,8 @@ if (empty($recipients)) $recipients = ['Semua'];
     </div>
 
     <script>
+        gsap.to("#centerCard", { opacity: 1, scale: 1, duration: 0.6, ease: "power2.out" });
+
         const composeForm = document.getElementById('composeForm');
         const messageInput = document.getElementById('messageInput');
         const btnSend = document.getElementById('btnSend');
@@ -253,7 +265,7 @@ if (empty($recipients)) $recipients = ['Semua'];
         const recipientSelect = document.getElementById('recipientSelect');
         const targetLabel = document.getElementById('targetLabel');
 
-        let selectedColor = '#ff0055';
+        let selectedColor = '#e63946';
 
         if (recipientSelect) {
             recipientSelect.addEventListener('change', () => {
@@ -296,10 +308,12 @@ if (empty($recipients)) $recipients = ['Semua'];
                 if (response.ok && resData.status === 'success') {
                     sentIndicator.className = 'sent-indicator success';
                     sentIndicator.textContent = `Terkirim ke Layar (Untuk ${recipient}): "${message}"`;
+                    gsap.fromTo(sentIndicator, { opacity: 0, y: 5 }, { opacity: 1, y: 0, duration: 0.3 });
                     messageInput.value = '';
                 } else {
                     sentIndicator.className = 'sent-indicator error';
                     sentIndicator.textContent = resData.message || 'Gagal mengirim pesan.';
+                    gsap.fromTo(sentIndicator, { opacity: 0, y: 5 }, { opacity: 1, y: 0, duration: 0.3 });
                 }
             } catch (err) {
                 sentIndicator.className = 'sent-indicator error';
@@ -309,8 +323,10 @@ if (empty($recipients)) $recipients = ['Semua'];
                 btnSend.textContent = 'Kirim';
                 setTimeout(() => {
                     if (sentIndicator.classList.contains('success')) {
-                        sentIndicator.textContent = '';
-                        sentIndicator.className = 'sent-indicator';
+                        gsap.to(sentIndicator, { opacity: 0, duration: 0.4, onComplete: () => {
+                            sentIndicator.textContent = '';
+                            sentIndicator.className = 'sent-indicator';
+                        }});
                     }
                 }, 4000);
             }
